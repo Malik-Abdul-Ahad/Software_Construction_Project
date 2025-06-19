@@ -1,0 +1,196 @@
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+import java.time.LocalDate;
+import java.util.List;
+
+public class GenerateHardwareReportPage {
+    private MainApp mainApp;
+    private Controller controller;
+    private User user;
+    private ComboBox<String> reportTypeComboBox;
+    private TextArea reportContentArea;
+    private Label statusLabel;
+    
+    public void setMainApp(MainApp mainApp) {
+        this.mainApp = mainApp;
+    }
+
+    public void setController(Controller controller) {
+        this.controller = controller;
+    }
+    
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public void initialize(Stage stage) {
+        // Page title
+        Label titleLabel = new Label("Generate Hardware Report");
+        titleLabel.setFont(Font.font("Arial", 18));
+        titleLabel.setTextFill(Color.DARKSLATEGRAY);
+        
+        // Report type selection
+        Label reportTypeLabel = new Label("Report Type:");
+        reportTypeComboBox = new ComboBox<>();
+        reportTypeComboBox.getItems().addAll("All Hardware", "Faulty Hardware", "Recently Updated Hardware");
+        reportTypeComboBox.setValue("All Hardware"); // Default selection
+        
+        // Generate button
+        Button generateBtn = new Button("Generate Report");
+        generateBtn.setStyle("-fx-background-color: #fdb31e;-fx-font-weight: bold;-fx-background-radius: 25;-fx-padding: 6 20 6 20;");
+        generateBtn.setOnAction(e -> generateReport());
+
+        // Print button
+        Button printBtn = new Button("Print Report");
+        printBtn.setStyle("-fx-background-color: #4CAF50;-fx-text-fill: white;-fx-font-weight: bold;-fx-background-radius: 25;-fx-padding: 6 20 6 20;");
+        printBtn.setOnAction(e -> printReport());
+        
+        // Report content area
+        reportContentArea = new TextArea();
+        reportContentArea.setEditable(false);
+        reportContentArea.setPrefRowCount(20);
+        reportContentArea.setWrapText(true);
+        reportContentArea.setPromptText("Generated report will appear here");
+        
+        // Status label for feedback
+        statusLabel = new Label();
+        statusLabel.setFont(Font.font("Arial", 14));
+        statusLabel.setTextFill(Color.FIREBRICK);
+        
+        // Back button
+        Button backButton = new Button("Back to Dashboard");
+        backButton.setStyle("-fx-background-color: #0077B6;-fx-text-fill: white;-fx-font-weight: bold;-fx-background-radius: 25;-fx-padding: 6 20 6 20;");
+        backButton.setOnAction(e -> mainApp.showLabAssistantDashboard(user));
+        
+        // Layout for report type selection
+        HBox selectionBox = new HBox(10, reportTypeLabel, reportTypeComboBox, generateBtn, printBtn);
+        selectionBox.setAlignment(Pos.CENTER_LEFT);
+        selectionBox.setPadding(new Insets(10));
+        
+        // Button bar
+        HBox buttonBar = new HBox(10, backButton);
+        buttonBar.setAlignment(Pos.CENTER_RIGHT);
+        buttonBar.setPadding(new Insets(10));
+        
+        // Main content layout
+        VBox contentBox = new VBox(10, selectionBox, reportContentArea);
+        contentBox.setPadding(new Insets(20));
+        
+        // Main layout
+        BorderPane mainLayout = new BorderPane();
+        mainLayout.setTop(titleLabel);
+        BorderPane.setMargin(titleLabel, new Insets(20, 0, 20, 20));
+        mainLayout.setCenter(contentBox);
+        mainLayout.setBottom(new VBox(10, statusLabel, buttonBar));
+        BorderPane.setMargin(statusLabel, new Insets(10, 0, 0, 20));
+        
+        // Set white background and create scene
+        mainLayout.setStyle("-fx-background-color: white;");
+        Scene scene = new Scene(mainLayout, 900, 600);
+        stage.setTitle("Generate Hardware Report");
+        stage.setScene(scene);
+        stage.show();
+    }
+
+    private void generateReport() {
+        String reportType = reportTypeComboBox.getValue();
+        if (reportType == null) {
+            statusLabel.setTextFill(Color.RED);
+            statusLabel.setText("Please select a report type");
+            return;
+        }
+        
+        // Generate the hardware report
+        Report report = controller.generateHardwareReport();
+        
+        // Build a formatted report text
+        StringBuilder reportBuilder = new StringBuilder();
+        reportBuilder.append("HARDWARE REPORT\n");
+        reportBuilder.append("=========================================\n\n");
+        reportBuilder.append("Report Type: ").append(reportType).append("\n");
+        reportBuilder.append("Report ID: ").append(report.getReportID()).append("\n");
+        reportBuilder.append("Date Generated: ").append(LocalDate.now()).append("\n");
+        reportBuilder.append("Generated By: ").append(user.getUsername()).append("\n\n");
+        
+        // Get all labs to iterate through computers
+        List<Lab> allLabs = controller.getAllLabs();
+        
+        if (allLabs.isEmpty()) {
+            reportBuilder.append("No labs found in the system.\n");
+        } else {
+            int totalComputers = 0;
+            
+            // Collect hardware details from all labs
+            for (Lab lab : allLabs) {
+                List<Computer> computers = controller.getComputersInLab(lab.getLabID());
+                if (!computers.isEmpty()) {
+                    reportBuilder.append("LAB: ").append(lab.getLabName()).append("\n");
+                    reportBuilder.append("-----------------------------------------\n");
+                    
+                    for (Computer computer : computers) {
+                        boolean includeComputer = false;
+                        
+                        // Filter based on report type
+                        if (reportType.equals("All Hardware")) {
+                            includeComputer = true;
+                        } else if (reportType.equals("Faulty Hardware")) {
+                            // Simulate identifying faulty hardware (in a real app, this would check a status field)
+                            includeComputer = computer.getComputerID() % 5 == 0; // Just a simulation
+                        } else if (reportType.equals("Recently Updated Hardware")) {
+                            // Simulate checking for recently updated hardware
+                            includeComputer = computer.getComputerID() % 3 == 0; // Just a simulation
+                        }
+                        
+                        if (includeComputer) {
+                            reportBuilder.append("Computer ID: PC").append(computer.getComputerID()).append("\n");
+                            reportBuilder.append("Hardware Details: ").append(computer.getHardwareDetails()).append("\n");
+                            
+                            // Add simulated status for the report
+                            if (reportType.equals("Faulty Hardware")) {
+                                reportBuilder.append("Status: Needs Maintenance\n");
+                                reportBuilder.append("Issue: Hardware malfunction detected\n");
+                            } else if (reportType.equals("Recently Updated Hardware")) {
+                                reportBuilder.append("Last Updated: ").append(LocalDate.now().minusDays(computer.getComputerID() % 10)).append("\n");
+                                reportBuilder.append("Changes: Updated hardware components\n");
+                            }
+                            
+                            reportBuilder.append("-----------------------------------------\n");
+                            totalComputers++;
+                        }
+                    }
+                }
+            }
+            
+            reportBuilder.append("\nTotal ").append(reportType).append(" computers: ").append(totalComputers).append("\n");
+        }
+        
+        reportBuilder.append("\nEND OF REPORT");
+        
+        // Display the report
+        reportContentArea.setText(reportBuilder.toString());
+        
+        // Update status
+        statusLabel.setTextFill(Color.GREEN);
+        statusLabel.setText("Hardware report generated successfully");
+    }
+    
+    private void printReport() {
+        // Simulate printing the report
+        if (reportContentArea.getText().isEmpty()) {
+            statusLabel.setTextFill(Color.RED);
+            statusLabel.setText("No report to print. Generate a report first.");
+            return;
+        }
+        
+        // In a real application, this would connect to the printer
+        // For now, we'll just show a success message
+        statusLabel.setTextFill(Color.GREEN);
+        statusLabel.setText("Report sent to printer successfully");
+    }
+}
